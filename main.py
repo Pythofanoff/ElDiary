@@ -1,8 +1,11 @@
 # Валидация данных и проверка уникальных записей при записи в бд
 # Проблема с названиями в два слова, в окнах добавления
 # Оптимизация кода: уменьшение потребления ОЗУ, Hot Update данных при любом изменении и моментальная подгрузка с БД
-# Добавить подсёт процента успеваемости студента
-# Добавить бинды для удобства
+# Добавить подсчёт процента успеваемости студента
+# Добавить возможность удалять дисциплины 
+# Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
+# Подсветка оценок (2 - красный, 3 - оранжевый, 4 - жёлтый, 5 - зелёный)
+# Добавить разлиновку полей 
 
 # Импорт всех нужных библиотек
 import tkinter as tk
@@ -218,7 +221,7 @@ class MainWindow(tk.Frame):
         ttk.Button(self.filter_frame, text='Обновить', command=self.update_widgets).pack(padx=(3,2), anchor='e', side='left')
 
     # Метод добавления нового пользователя в таблицу
-    def add_students(self, event):
+    def add_students(self, event=None):
         dialog = tk.Toplevel(self.root)
         dialog.title('Добавление нового студента...')
         dialog.geometry('320x100')
@@ -254,7 +257,7 @@ class MainWindow(tk.Frame):
         ttk.Button(dialog, text='Сохранить', command=save).pack(side='bottom', pady=2)
 
     # Метод удаления студента / студентов по выделению в таблице
-    def delete_students(self, event):
+    def delete_students(self, event=None):
         iid = self.tree3.selection()
         msg = messagebox.askyesno('Предупреждение', 'Вы хотите удалить студента(ов) из таблицы безвозвратно?')
 
@@ -288,7 +291,7 @@ class MainWindow(tk.Frame):
         window.grab_release() 
         window.destroy()
 
-    def update_widgets(self, event):
+    def update_widgets(self, event=None):
         self.month_selected = self.month_var.get()
         self.discipline_selected = self.discipline_var.get()
         self.group_selected = self.group_var.get()
