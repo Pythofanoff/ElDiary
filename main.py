@@ -15,7 +15,7 @@ class DBManager:
     # Глобальная переменная пути к файлу БД
     PATH = 'electronic_diary.db'
 
-    # Функция создания бд и таблиц         
+    # Метод создания бд и таблиц         
     def create_db(self):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -45,7 +45,7 @@ class DBManager:
             group_name TEXT NOT NULL);
             ''')
 
-    # Функция добавления пользователей
+    # Метод добавления пользователей
     def add_user(self, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -68,6 +68,7 @@ class DBManager:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             ''', data)
 
+    # Метод добавления дисциплины в БД
     def add_discipline(self, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -76,9 +77,8 @@ class DBManager:
             INSERT INTO disciplines (name, group_name) VALUES (?, ?);
             ''', data)
 
-    # Функция получения пользователей
+    # Метод получения пользователей из БД
     def get_all_users(self, group_name, month_translit):
-        # print('group_name:', group_name, "", type(group_name))
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
 
@@ -91,6 +91,7 @@ class DBManager:
 
         return cursor.fetchall()
 
+    # Получение всех групп из БД
     def get_all_groups(self):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -101,6 +102,7 @@ class DBManager:
 
         return cursor.fetchall()
     
+    # Получение всех дисциплин из БД
     def get_all_disciplines(self):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -111,13 +113,14 @@ class DBManager:
 
         return cursor.fetchall()
     
-    # Функция удаления пользователя
+    # Метод удаления пользователя
     def delete_user(self, data):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
 
             cursor.execute('DELETE FROM students WHERE fio = ? AND group_name = ?', data)
 
+    # Метод изменения ФИО в БД
     def edit_fio(self, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -128,6 +131,7 @@ class DBManager:
                 WHERE id = ?;
             """, data)
     
+    # Метод изменения оценки(ок) в БД
     def update_mark(self, month_translit, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
@@ -155,14 +159,9 @@ class MainWindow(tk.Frame):
         self.mark_var = tk.StringVar(value=self.mark[0])
 
         # Создание переменной для combobox'а 
-        print(*DBManager().get_all_groups())
         self.group = [*DBManager().get_all_groups(), 'Добавить группу...'] # + [''.join(*DBManager().get_all_groups().strip())] 
         self.group_var = tk.StringVar(value=self.group[0])
         self.group_selected = self.group[0]
-
-        # print(self.group_selected)
-        # self.data = [item[:] for _ in range(100)]
-        # self.data = []
 
         self.month_translit: dict = {
             'Сентябрь': 'sep_month',
@@ -180,7 +179,6 @@ class MainWindow(tk.Frame):
         self.month_translit_selected = self.month_translit.get(self.month_selected, '')
 
         self.data = DBManager().get_all_users(group_name=self.group_selected, month_translit=self.month_translit_selected)
-        print('self.data: ', self.data)
 
         # Первоначальный запуск функций 
         self.init_filters()
@@ -189,8 +187,6 @@ class MainWindow(tk.Frame):
         self.init_tree()
 
         self.binds()
-        
-        # self.update_widgets()
 
     # Создание и работа с фильтрами над таблицей
     def init_filters(self):
@@ -217,12 +213,12 @@ class MainWindow(tk.Frame):
         self.cmb_group = ttk.Combobox(self.filter_frame, textvariable=self.group_var, values=self.group, width=24, state='readonly')
         self.cmb_group.pack(anchor='e', side='left')
 
-        ttk.Button(self.filter_frame, text='Добавить студента...', command=self.add_user).pack(padx=(3,2), anchor='e', side='left')
+        ttk.Button(self.filter_frame, text='Добавить студента...', command=self.add_students).pack(padx=(3,2), anchor='e', side='left')
         ttk.Button(self.filter_frame, text='Удалить студента(ов)', command=self.delete_students).pack(padx=(3,2), anchor='e', side='left')
         ttk.Button(self.filter_frame, text='Обновить', command=self.update_widgets).pack(padx=(3,2), anchor='e', side='left')
 
-    # Функция добавления нового пользователя в таблицу
-    def add_user(self):
+    # Метод добавления нового пользователя в таблицу
+    def add_students(self, event):
         dialog = tk.Toplevel(self.root)
         dialog.title('Добавление нового студента...')
         dialog.geometry('320x100')
@@ -257,7 +253,8 @@ class MainWindow(tk.Frame):
 
         ttk.Button(dialog, text='Сохранить', command=save).pack(side='bottom', pady=2)
 
-    def delete_students(self):
+    # Метод удаления студента / студентов по выделению в таблице
+    def delete_students(self, event):
         iid = self.tree3.selection()
         msg = messagebox.askyesno('Предупреждение', 'Вы хотите удалить студента(ов) из таблицы безвозвратно?')
 
@@ -278,13 +275,20 @@ class MainWindow(tk.Frame):
         self.cmb_group.bind('<<ComboboxSelected>>', self.get_group)
 
         self.tree3.bind('<Button-1>', self.edit_value)
-    
-    # Вспомогательная функция для правильного закрытия окна
+        
+        self.root.bind('<Control-S>', self.update_widgets)
+        self.root.bind('<Control-s>', self.update_widgets)
+        self.root.bind('<Control-A>', self.add_students)
+        self.root.bind('<Control-a>', self.add_students)
+        self.root.bind('<Control-D>', self.delete_students)
+        self.root.bind('<Control-d>', self.delete_students)
+
+    # Вспомогательная метод для правильного закрытия окна
     def dismiss(self, window):
         window.grab_release() 
         window.destroy()
 
-    def update_widgets(self):
+    def update_widgets(self, event):
         self.month_selected = self.month_var.get()
         self.discipline_selected = self.discipline_var.get()
         self.group_selected = self.group_var.get()
@@ -475,19 +479,11 @@ class MainWindow(tk.Frame):
             )
             for i in range(len(self.data))
         ]
-        print('data_format: ', data_format)
 
         for data in data_format:
             self.tree3.insert('', tk.END, values=data)
-        
-        # my_list: list = [
-        #     (
-        #         sum(float(x.isdigit())) for x in self.data[i][2].split(',') if x.isdigit()) / len(self.data[i][2].split(',')
-        #     )
-        #     for i in range(len(self.data))
-        # ] 
 
-    # Функция изменения значения в поле таблице
+    # Метод изменения значения в поле таблице
     def edit_value(self, event):
         non_editable_cols: list = ['№', 'Ср. балл', 'Процент успеваемости']
 
@@ -516,7 +512,7 @@ class MainWindow(tk.Frame):
             cmb_value.focus()
             cmb_value.insert(0, values[col_indx])
 
-        # Функция сохранения значения в поле таблицы
+        # Метод сохранения значения в поле таблицы
         def save_value(event=None):
             values[col_indx] = cmb_value.get()
             if cmb_value.get() == '' or cmb_value.get() == ' ':
@@ -524,7 +520,6 @@ class MainWindow(tk.Frame):
                 if msg:
                     iid = self.tree3.selection()
                     if iid:
-                        # val = self.tree3.set(iid, '№')
                         val = self.group_var.get()
                         val2 = self.tree3.set(iid, 'Обучающиеся')
 
@@ -532,7 +527,6 @@ class MainWindow(tk.Frame):
                     print('data: ', data)
                     
                     DBManager().delete_user(data)
-                    # self.tree3.delete(item)
                     self.update_widgets()
                 else:
                     return 
@@ -559,7 +553,7 @@ class MainWindow(tk.Frame):
         cmb_value.bind('<FocusOut>', lambda e: cmb_value.destroy())
         cmb_value.bind('<Escape>', lambda e: cmb_value.destroy())
 
-# Главная функция main(). Входная точка запуска всей программы 
+# Главная функция main(). Входная точка запуска всей программы.
 def main():
     db = DBManager().create_db()
 
