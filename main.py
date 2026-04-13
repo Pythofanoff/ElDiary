@@ -1,14 +1,15 @@
-# Добавить возможность удалять дисциплины 
 # Проблема с названиями в два слова, в окнах добавления
 # Добавить подсчёт процента успеваемости студента
 # В таблице в колонке "№" вместо вывода id с БД выводить номер по порядку  
 # Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
 
-# Оптимизация кода: уменьшение потребления ОЗУ
+# Добавить возможность удалять записи с > 1 общей группой
+# Добавить изменение групп для дисциплины  
 # Сделать скроллбары поудобнее
 # Поля с выбором групп сделать combobox с поддержкой ввода новой группы (без режима readonly)
 # Подсветка оценок (2 - красный, 3 - оранжевый, 4 - жёлтый, 5 - зелёный)
 # Добавить разлиновку полей 
+# Оптимизация кода: уменьшение потребления ОЗУ
 
 # Импорт всех нужных библиотек
 import tkinter as tk
@@ -128,6 +129,13 @@ class DBManager:
 
             cursor.execute('DELETE FROM students WHERE fio = ? AND group_name = ?', data)
 
+    # Метод удаления дисциплин
+    def delete_discipline(self, data):
+        with sqlite3.connect(DBManager.PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('DELETE FROM disciplines WHERE name = ? AND group_name = ?', data)
+
     # Метод изменения ФИО в БД
     def edit_fio(self, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
@@ -139,6 +147,17 @@ class DBManager:
                 WHERE id = ?;
             """, data)
     
+    # Метод изменения названия дисциплины в БД
+    def edit_discipline(self, data: tuple):
+        with sqlite3.connect(DBManager.PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE disciplines
+                SET name = ?
+                WHERE name = ?;
+            """, data)
+
     # Метод изменения оценки(ок) в БД
     def update_mark(self, month_translit, data: tuple):
         with sqlite3.connect(DBManager.PATH) as conn:
@@ -300,6 +319,9 @@ class MainWindow(tk.Frame):
 
         self.root.bind('<Control-S>', self.update_widgets)
         self.root.bind('<Control-s>', self.update_widgets)
+        self.root.bind('<Control-R>', self.update_widgets)
+        self.root.bind('<Control-r>', self.update_widgets)
+        self.root.bind('<F5>', self.update_widgets)
         self.root.bind('<Control-A>', self.add_students)
         self.root.bind('<Control-a>', self.add_students)
         self.root.bind('<Control-D>', self.delete_students)
@@ -333,7 +355,102 @@ class MainWindow(tk.Frame):
     def get_discipline(self, event=None):
         self.group_selected = self.cmb_discipline.get()
 
-        if self.group_selected == 'Добавить дисциплину...':
+        if self.group_selected == 'Удалить дисциплину...':
+            dialog = tk.Toplevel(self.root)
+            dialog.iconbitmap('icon.ico')
+            dialog.title('Удаление дисциплины...')
+            dialog.geometry('330x120')
+            dialog.resizable(False, False)
+            dialog.grab_set()
+
+            frame = tk.Frame(dialog)
+            frame.pack(fill='x')
+
+            frame2 = tk.Frame(dialog)
+            frame2.pack(fill='x')
+
+            tk.Label(frame, text='Введите дисциплину для удаления: ').pack(side='left')
+
+            entry_discipline = ttk.Entry(frame, width=25)
+            entry_discipline.pack(padx=(5,0), pady=(5,3), side='left')
+            entry_discipline.focus()
+
+            tk.Label(frame2, text='Введите группу для удаления: ').pack(side='left')
+
+            entry_group = ttk.Entry(frame2, width=25)
+            entry_group.pack(padx=(0,5), pady=(3,4), side='right')
+
+            def delete_discipline(event=None):  
+                delete_name = entry_discipline.get().strip()
+                group = entry_group.get()
+
+                if not group:
+                    messagebox.showerror('Ошибка', 'Поле группы пустое', parent=dialog)
+                    return 
+  
+                if delete_name not in self.disciplines:                    
+                    messagebox.showerror('Ошибка', 'Такой дисциплины не существует', parent=dialog)
+                    return
+                else:
+                    group = ','.join(group.split())
+                    DBManager().delete_discipline(data=(delete_name, group))
+                    self.disciplines.insert(0, delete_name)
+                    self.cmb_discipline.set(self.disciplines[0])
+                    self.update_widgets()
+                    return
+
+            entry_discipline.bind('<Return>', delete_discipline)
+            entry_group.bind('<Return>', delete_discipline)
+            ttk.Button(dialog, text='Удалить', command=delete_discipline).pack(side='bottom', pady=(0,2))
+
+        elif self.group_selected == 'Изменить дисциплину...':
+            dialog = tk.Toplevel(self.root)
+            dialog.iconbitmap('icon.ico')
+            dialog.title('Изменение дисциплины...')
+            dialog.geometry('330x120')
+            dialog.resizable(False, False)
+            dialog.grab_set()
+
+            frame = tk.Frame(dialog)
+            frame.pack(fill='x')
+
+            frame2 = tk.Frame(dialog)
+            frame2.pack(fill='x')
+
+            tk.Label(frame, text='Введите дисциплину для изменения названия: ').pack(side='left')
+
+            entry_discipline = ttk.Entry(frame, width=25)
+            entry_discipline.pack(padx=(5,0), pady=(5,3), side='left')
+            entry_discipline.focus()
+
+            tk.Label(frame2, text='Введите новое название: ').pack(side='left')
+
+            entry_new_name = ttk.Entry(frame2, width=25)
+            entry_new_name.pack(padx=(0,5), pady=(3,4), side='right')
+
+            def edit_discipline(event=None):  
+                edit_name = entry_discipline.get().strip()
+                new = entry_new_name.get()
+
+                if not new:
+                    messagebox.showerror('Ошибка', 'Поле нового название пустое', parent=dialog)
+                    return 
+  
+                if edit_name not in self.disciplines:                    
+                    messagebox.showerror('Ошибка', 'Такой дисциплины не существует', parent=dialog)
+                    return
+                else:
+                    DBManager().edit_discipline(data=(new, edit_name))
+                    self.disciplines.insert(0, edit_name)
+                    self.cmb_discipline.set(self.disciplines[0])
+                    self.update_widgets()
+                    return
+
+            entry_discipline.bind('<Return>', edit_discipline)
+            entry_new_name.bind('<Return>', edit_discipline)
+            ttk.Button(dialog, text='Изменить', command=edit_discipline).pack(side='bottom', pady=(0,2))
+
+        elif self.group_selected == 'Добавить дисциплину...':
             dialog = tk.Toplevel(self.root)
             dialog.iconbitmap('icon.ico')
             dialog.title('Добавление новой дисциплины...')
