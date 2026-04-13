@@ -1,1 +1,1 @@
-![img](icon.ico)
+![img](logo.png)
