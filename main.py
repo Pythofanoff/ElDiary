@@ -1,5 +1,4 @@
 # Оптимизация кода: уменьшение потребления ОЗУ
-# Вывод дисциплин актульные для конкретной группы
 # Добавить возможность удалять дисциплины 
 # Поля с выбором групп сделать combobox с поддержкой ввода новой группы (без режима readonly)
 # Проблема с названиями в два слова, в окнах добавления
@@ -12,8 +11,10 @@
 
 # Импорт всех нужных библиотек
 import tkinter as tk
-from tkinter import ttk, messagebox 
+import itertools
 import sqlite3 
+
+from tkinter import ttk, messagebox 
 
 
 # Класс для работы с БД
@@ -114,11 +115,11 @@ class DBManager:
             cursor = conn.cursor()
 
             cursor.execute('''
-            SELECT DISTINCT name FROM disciplines 
+            SELECT group_name, name FROM disciplines 
             ''')
 
         return cursor.fetchall()
-    
+
     # Метод удаления пользователя
     def delete_user(self, data):
         with sqlite3.connect(DBManager.PATH) as conn:
@@ -150,13 +151,20 @@ class MainWindow(tk.Frame):
     def __init__(self, root): 
         self.root = root 
 
+        self.getdisciplines = DBManager().get_all_disciplines()
+
+        self.pairs_disciplines: dict = {}
+        for i in range(len(self.getdisciplines)):
+            my_list: list = self.getdisciplines[i][0].split(',')
+            self.pairs_disciplines[tuple(my_list)] = self.pairs_disciplines.get(tuple(my_list), []) + [self.getdisciplines[i][1]]
+
         # Создание переменной для combobox'а 
         self.months = ['Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь']
         self.month_var = tk.StringVar(self.root, value=self.months[0])
         self.month_selected = 'Сентябрь'
         
         # Создание переменной для combobox'а 
-        self.disciplines = [discipline for disc in DBManager().get_all_disciplines() for discipline in disc] + ['Добавить дисциплину...']
+        self.disciplines = ['Добавить дисциплину...']
         self.discipline_var = tk.StringVar(self.root, value=self.disciplines[0])
         self.discipline_selected = 'Добавить дисциплину...'
 
@@ -308,7 +316,7 @@ class MainWindow(tk.Frame):
 
         self.month_translit_selected = self.month_translit.get(self.month_selected, '')
         self.data = DBManager().get_all_users(group_name=(self.cmb_group.get(),), month_translit=self.month_translit_selected)
-        
+
         self.init_filters()
         self.init_scrollbar()
         self.init_tree()
@@ -358,6 +366,7 @@ class MainWindow(tk.Frame):
                     return 
   
                 if new not in self.disciplines:
+                    group = ','.join(group.split())
                     DBManager().add_discipline(data=(new, group))
                     self.disciplines.insert(0, new)
                     self.cmb_discipline.set(self.disciplines[0])
@@ -378,6 +387,14 @@ class MainWindow(tk.Frame):
     # Получение группы из combobox'а
     def get_group(self, event):
         self.group_selected = self.cmb_group.get()
+
+        self.disciplines: list = [] 
+        for key in self.pairs_disciplines.keys():
+            if self.group_selected in list(key):  
+                self.disciplines.extend(self.pairs_disciplines.get(key, ''))
+        
+        self.update_widgets()
+        self.disciplines.append('Добавить дисциплину...')
 
         if self.group_selected == 'Добавить группу...':
             dialog = tk.Toplevel(self.root)
@@ -537,7 +554,6 @@ class MainWindow(tk.Frame):
                         val2 = self.tree3.set(iid, 'Обучающиеся')
 
                     data = (val2, val)
-                    print('data: ', data)
                     
                     DBManager().delete_user(data)
                     self.update_widgets()
