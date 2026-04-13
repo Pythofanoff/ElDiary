@@ -1,8 +1,11 @@
-# Валидация данных и проверка уникальных записей при записи в бд
-# Проблема с названиями в два слова, в окнах добавления
-# Оптимизация кода: уменьшение потребления ОЗУ, Hot Update данных при любом изменении и моментальная подгрузка с БД
-# Добавить подсчёт процента успеваемости студента
+# Оптимизация кода: уменьшение потребления ОЗУ
+# Вывод дисциплин актульные для конкретной группы
 # Добавить возможность удалять дисциплины 
+# Поля с выбором групп сделать combobox с поддержкой ввода новой группы (без режима readonly)
+# Проблема с названиями в два слова, в окнах добавления
+# Добавить подсчёт процента успеваемости студента
+# Сделать скроллбары поудобнее
+# В таблице в колонке "№" вместо вывода id с БД выводить номер по порядку  
 # Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
 # Подсветка оценок (2 - красный, 3 - оранжевый, 4 - жёлтый, 5 - зелёный)
 # Добавить разлиновку полей 
@@ -153,7 +156,7 @@ class MainWindow(tk.Frame):
         self.month_selected = 'Сентябрь'
         
         # Создание переменной для combobox'а 
-        self.disciplines = [*DBManager().get_all_disciplines(), 'Добавить дисциплину...']
+        self.disciplines = [discipline for disc in DBManager().get_all_disciplines() for discipline in disc] + ['Добавить дисциплину...']
         self.discipline_var = tk.StringVar(self.root, value=self.disciplines[0])
         self.discipline_selected = 'Добавить дисциплину...'
 
@@ -223,6 +226,7 @@ class MainWindow(tk.Frame):
     # Метод добавления нового пользователя в таблицу
     def add_students(self, event=None):
         dialog = tk.Toplevel(self.root)
+        dialog.iconbitmap('icon.ico')
         dialog.title('Добавление нового студента...')
         dialog.geometry('320x100')
         dialog.resizable(False, False)
@@ -256,6 +260,9 @@ class MainWindow(tk.Frame):
 
         ttk.Button(dialog, text='Сохранить', command=save).pack(side='bottom', pady=2)
 
+    def delete_discipline(self, event=None):
+        pass 
+            
     # Метод удаления студента / студентов по выделению в таблице
     def delete_students(self, event=None):
         iid = self.tree3.selection()
@@ -274,11 +281,14 @@ class MainWindow(tk.Frame):
     # Инициализация горячих клавиш
     def binds(self):
         self.cmb_month.bind('<<ComboboxSelected>>', self.get_month)
+
         self.cmb_discipline.bind('<<ComboboxSelected>>', self.get_discipline)
+        self.cmb_discipline.bind('<Enter>', self.delete_discipline)
+
         self.cmb_group.bind('<<ComboboxSelected>>', self.get_group)
 
         self.tree3.bind('<Button-1>', self.edit_value)
-        
+
         self.root.bind('<Control-S>', self.update_widgets)
         self.root.bind('<Control-s>', self.update_widgets)
         self.root.bind('<Control-A>', self.add_students)
@@ -316,6 +326,7 @@ class MainWindow(tk.Frame):
 
         if self.group_selected == 'Добавить дисциплину...':
             dialog = tk.Toplevel(self.root)
+            dialog.iconbitmap('icon.ico')
             dialog.title('Добавление новой дисциплины...')
             dialog.geometry('330x120')
             dialog.resizable(False, False)
@@ -338,28 +349,23 @@ class MainWindow(tk.Frame):
             entry_group = ttk.Entry(frame2, width=25)
             entry_group.pack(padx=(0,5), pady=(3,4), side='right')
 
-            def save_disciplines(event=None):
+            def save_disciplines(event=None):  
                 new = entry_add_discipline.get().strip()
                 group = entry_group.get()
 
-                if new:
-                    dialog.destroy()
+                if not group:
+                    messagebox.showerror('Ошибка', 'Поле группы пустое', parent=dialog)
+                    return 
+  
+                if new not in self.disciplines:
+                    DBManager().add_discipline(data=(new, group))
                     self.disciplines.insert(0, new)
-
-                    data: tuple = (new, group)
-                    DBManager().add_discipline(data=data)
+                    self.cmb_discipline.set(self.disciplines[0])
                     self.update_widgets()
-                    
                     return
-
-                if new in self.disciplines:
+                else:
                     messagebox.showerror('Ошибка', 'Такая дисциплина уже существует', parent=dialog)
                     return
-
-                self.disciplines.insert(0, new)
-                dialog.destroy()
-                self.cmb_discipline.set(new)
-                self.update_widgets()
 
             entry_add_discipline.bind('<Return>', save_disciplines)
             entry_group.bind('<Return>', save_disciplines)
@@ -372,12 +378,17 @@ class MainWindow(tk.Frame):
     # Получение группы из combobox'а
     def get_group(self, event):
         self.group_selected = self.cmb_group.get()
+
         if self.group_selected == 'Добавить группу...':
             dialog = tk.Toplevel(self.root)
+            dialog.iconbitmap('icon.ico')
             dialog.title('Добавление новой группы...')
             dialog.geometry('300x120')
             dialog.resizable(False, False)
             dialog.grab_set()
+
+            frame = tk.Frame(dialog)
+            frame.pack(side='bottom')
 
             tk.Label(dialog, text='Введите новую группу: ').pack(side='left')
 
@@ -387,20 +398,19 @@ class MainWindow(tk.Frame):
 
             def save_group(event=None):
                 new = entry_add_group.get().strip()
-                if not new:
-                    dialog.destroy()
-                    self.cmb_group.set(self.group_selected if self.group_selected else (self.group[0] if self.group else ""))
+
+                if new not in self.group:
+                    self.group.insert(0, new)
+                    self.cmb_group.set(self.group[0])
+                    self.update_widgets()
                     return
-                if new in self.group:
+                else:
                     messagebox.showerror('Ошибка', 'Такая группа уже существует', parent=dialog)
                     return
 
-                self.group.insert(0, new)
-                dialog.destroy()
-                self.cmb_group.set(new)
-                self.update_widgets()
-
             entry_add_group.bind('<Return>', save_group)
+            ttk.Button(frame, text='Добавить', command=save_group).pack(side='bottom', pady=(0,2))
+
             self.root.wait_window(dialog)
         else:
             self.update_widgets()
@@ -556,11 +566,12 @@ class MainWindow(tk.Frame):
         cmb_value.bind('<FocusOut>', lambda e: cmb_value.destroy())
         cmb_value.bind('<Escape>', lambda e: cmb_value.destroy())
 
-# Главная функция main(). Входная точка запуска всей программы.
+# Главная функция. Входная точка запуска всей программы.
 def main():
     db = DBManager().create_db()
 
     root = tk.Tk()
+    root.iconbitmap('icon.ico')
     root.state('zoomed')
     root.title('Электронный дневник студента (ЭДС)')
     root.configure(bg='white')
