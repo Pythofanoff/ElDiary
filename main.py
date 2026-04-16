@@ -1,6 +1,5 @@
-# Проблема с названиями в два слова, в окнах добавления
-# Добавить подсчёт процента успеваемости студента
 # В таблице в колонке "№" вместо вывода id с БД выводить номер по порядку  
+# Добавить подсчёт процента успеваемости студента
 # Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
 
 # Добавить возможность удалять записи с > 1 общей группой
@@ -193,7 +192,13 @@ class MainWindow(tk.Frame):
         self.mark_var = tk.StringVar(value=self.mark[0])
 
         # Создание переменной для combobox'а 
-        self.group = [*DBManager().get_all_groups(), 'Добавить группу...'] # + [''.join(*DBManager().get_all_groups().strip())] 
+        get_allGroups = DBManager().get_all_groups()
+        # print('get_allGroups: ', get_allGroups)
+
+        self.group = [x for y in get_allGroups for x in y] + ['Добавить группу...'] # + [''.join(*DBManager().get_all_groups().strip())] 
+        # self.group.extend(['Добавить группу...'])
+        # print('init first self.group: ', self.group)
+
         self.group_var = tk.StringVar(value=self.group[0])
         self.group_selected = self.group[0]
 
@@ -216,7 +221,7 @@ class MainWindow(tk.Frame):
 
         # Первоначальный запуск функций 
         self.init_filters()
-        self.group_selected = self.cmb_month.get()
+        self.group_selected = self.cmb_month.get().strip()
         self.init_scrollbar()
         self.init_tree()
 
@@ -275,12 +280,12 @@ class MainWindow(tk.Frame):
         lbl = tk.Label(frame2, text='Введите группу: ')
         lbl.pack(side='left', padx=4)
 
-        entry_add_group = ttk.Entry(frame2, width=25)
+        entry_add_group = ttk.Combobox(frame2, textvariable=self.group_var, values=self.group, width=24)
         entry_add_group.pack(padx=(5,0), pady=(5,5), side='right', anchor='e')
-        entry_add_group.focus()
 
         def save(): 
             data = (entry_add_user.get().strip(), entry_add_group.get().strip()) + (','*30,)*10
+            print('save_data_user: ', data)
 
             DBManager().add_user(data)
 
@@ -326,6 +331,7 @@ class MainWindow(tk.Frame):
         self.root.bind('<Control-a>', self.add_students)
         self.root.bind('<Control-D>', self.delete_students)
         self.root.bind('<Control-d>', self.delete_students)
+        self.root.bind('<Delete>', self.delete_students)
 
     # Вспомогательная метод для правильного закрытия окна
     def dismiss(self, window):
@@ -333,12 +339,25 @@ class MainWindow(tk.Frame):
         window.destroy()
 
     def update_widgets(self, event=None):
+        # self.group_var.set(self.group[0])
+
         self.month_selected = self.month_var.get()
         self.discipline_selected = self.discipline_var.get()
         self.group_selected = self.group_var.get()
+        # print('self.group_selected: ', self.group_selected)
+        # self.cmb_group.set(self.group[0])
 
         self.month_translit_selected = self.month_translit.get(self.month_selected, '')
-        self.data = DBManager().get_all_users(group_name=(self.cmb_group.get(),), month_translit=self.month_translit_selected)
+        self.data = DBManager().get_all_users(group_name=(self.cmb_group.get().strip(),), month_translit=self.month_translit_selected)
+
+        self.disciplines: list = [] 
+        for key in self.pairs_disciplines.keys():
+            if list(self.group_selected) in list(key):  
+                self.disciplines.extend(self.pairs_disciplines.get(key, ''))
+
+        self.disciplines.append('Добавить дисциплину...')
+        self.disciplines.append('Удалить дисциплину...')
+        self.disciplines.append('Изменить дисциплину...')
 
         self.init_filters()
         self.init_scrollbar()
@@ -348,12 +367,12 @@ class MainWindow(tk.Frame):
 
     # Получение месяца из combobox'а
     def get_month(self, event=None):
-        self.month_selected = self.cmb_month.get()
+        self.month_selected = self.cmb_month.get().strip()
         self.update_widgets()
 
     # Получение дисциплины из combobox'а
     def get_discipline(self, event=None):
-        self.group_selected = self.cmb_discipline.get()
+        self.group_selected = self.cmb_discipline.get().strip()
 
         if self.group_selected == 'Удалить дисциплину...':
             dialog = tk.Toplevel(self.root)
@@ -372,7 +391,7 @@ class MainWindow(tk.Frame):
             tk.Label(frame, text='Введите дисциплину для удаления: ').pack(side='left')
 
             entry_discipline = ttk.Entry(frame, width=25)
-            entry_discipline.pack(padx=(5,0), pady=(5,3), side='left')
+            entry_discipline.pack(padx=(5,5), pady=(5,3), side='left')
             entry_discipline.focus()
 
             tk.Label(frame2, text='Введите группу для удаления: ').pack(side='left')
@@ -382,7 +401,7 @@ class MainWindow(tk.Frame):
 
             def delete_discipline(event=None):  
                 delete_name = entry_discipline.get().strip()
-                group = entry_group.get()
+                group = entry_group.get().strip()
 
                 if not group:
                     messagebox.showerror('Ошибка', 'Поле группы пустое', parent=dialog)
@@ -430,7 +449,7 @@ class MainWindow(tk.Frame):
 
             def edit_discipline(event=None):  
                 edit_name = entry_discipline.get().strip()
-                new = entry_new_name.get()
+                new = entry_new_name.get().strip()
 
                 if not new:
                     messagebox.showerror('Ошибка', 'Поле нового название пустое', parent=dialog)
@@ -472,12 +491,12 @@ class MainWindow(tk.Frame):
 
             tk.Label(frame2, text='Введите группу: ').pack(side='left')
 
-            entry_group = ttk.Entry(frame2, width=25)
+            entry_group = ttk.Combobox(frame2, textvariable=self.group_var, values=self.group, width=25)
             entry_group.pack(padx=(0,5), pady=(3,4), side='right')
 
             def save_disciplines(event=None):  
                 new = entry_add_discipline.get().strip()
-                group = entry_group.get()
+                group = entry_group.get().strip()
 
                 if not group:
                     messagebox.showerror('Ошибка', 'Поле группы пустое', parent=dialog)
@@ -487,7 +506,7 @@ class MainWindow(tk.Frame):
                     group = ','.join(group.split())
                     DBManager().add_discipline(data=(new, group))
                     self.disciplines.insert(0, new)
-                    self.cmb_discipline.set(self.disciplines[0])
+                    # self.cmb_discipline.set(self.disciplines[0])
                     self.update_widgets()
                     return
                 else:
@@ -495,7 +514,7 @@ class MainWindow(tk.Frame):
                     return
 
             entry_add_discipline.bind('<Return>', save_disciplines)
-            entry_group.bind('<Return>', save_disciplines)
+            entry_group.bind('<<ComboboxSelected>>', save_disciplines)
             ttk.Button(dialog, text='Добавить', command=save_disciplines).pack(side='bottom', pady=(0,2))
 
             self.root.wait_window(dialog)
@@ -504,17 +523,8 @@ class MainWindow(tk.Frame):
     
     # Получение группы из combobox'а
     def get_group(self, event):
-        self.group_selected = self.cmb_group.get()
-
-        self.disciplines: list = [] 
-        for key in self.pairs_disciplines.keys():
-            if self.group_selected in list(key):  
-                self.disciplines.extend(self.pairs_disciplines.get(key, ''))
-        
-        self.update_widgets()
-        self.disciplines.append('Добавить дисциплину...')
-        self.disciplines.append('Удалить дисциплину...')
-        self.disciplines.append('Изменить дисциплину...')
+        self.group_selected = self.cmb_group.get().strip()
+        print("get_group_selected: ", self.group_selected)
 
         if self.group_selected == 'Добавить группу...':
             dialog = tk.Toplevel(self.root)
@@ -535,11 +545,15 @@ class MainWindow(tk.Frame):
 
             def save_group(event=None):
                 new = entry_add_group.get().strip()
-
+                print('new: ', new)
                 if new not in self.group:
                     self.group.insert(0, new)
                     self.cmb_group.set(self.group[0])
+                    self.group_selected = self.cmb_group.get()
+                    self.group_var.set(self.group[0])
+                    
                     self.update_widgets()
+
                     return
                 else:
                     messagebox.showerror('Ошибка', 'Такая группа уже существует', parent=dialog)
@@ -547,7 +561,8 @@ class MainWindow(tk.Frame):
 
             entry_add_group.bind('<Return>', save_group)
             ttk.Button(frame, text='Добавить', command=save_group).pack(side='bottom', pady=(0,2))
-
+            self.update_widgets()
+            
             self.root.wait_window(dialog)
         else:
             self.update_widgets()
@@ -611,10 +626,10 @@ class MainWindow(tk.Frame):
             self.tree3.column(heading, stretch=False, width=932)
 
         self.tree3.column('№', width=25)
-        self.tree3.column('Обучающиеся', width=234)
+        self.tree3.column('Обучающиеся', width=220)
 
         for date in date:
-            self.tree3.column(date, width=25)
+            self.tree3.column(date, width=32)
 
         self.tree3.column('Ср. балл', width=99)
         self.tree3.column('Процент успеваемости', width=214)
@@ -664,13 +679,13 @@ class MainWindow(tk.Frame):
 
         # Метод сохранения значения в поле таблицы
         def save_value(event=None):
-            values[col_indx] = cmb_value.get()
-            if cmb_value.get() == '' or cmb_value.get() == ' ':
+            values[col_indx] = cmb_value.get().strip()
+            if cmb_value.get().strip() == '' or cmb_value.get().strip() == ' ':
                 msg = messagebox.askyesno('Предупреждение', 'Вы стёрли информацию о студенте, вы хотите удалить этого студента из таблицы?')
                 if msg:
                     iid = self.tree3.selection()
                     if iid:
-                        val = self.group_var.get()
+                        val = self.group_var.get().strip()
                         val2 = self.tree3.set(iid, 'Обучающиеся')
 
                     data = (val2, val)
