@@ -1,168 +1,22 @@
-# В таблице в колонке "№" вместо вывода id с БД выводить номер по порядку  
 # Добавить подсчёт процента успеваемости студента
+# Баг: у дисциплины перестало срабатывать проверку на уникальность (связано с перезаписью self.discipline в update_widgets())
 # Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
 
 # Добавить возможность удалять записи с > 1 общей группой
 # Добавить изменение групп для дисциплины  
 # Сделать скроллбары поудобнее
-# Поля с выбором групп сделать combobox с поддержкой ввода новой группы (без режима readonly)
 # Подсветка оценок (2 - красный, 3 - оранжевый, 4 - жёлтый, 5 - зелёный)
 # Добавить разлиновку полей 
 # Оптимизация кода: уменьшение потребления ОЗУ
 
 # Импорт всех нужных библиотек
-import tkinter as tk
 import itertools
-import sqlite3 
+import tkinter as tk
+from functools import reduce
+from tkinter import messagebox, ttk
 
-from tkinter import ttk, messagebox 
+from dbmanager import DBManager
 
-
-# Класс для работы с БД
-class DBManager:
-    # Глобальная переменная пути к файлу БД
-    PATH = 'electronic_diary.db'
-
-    # Метод создания бд и таблиц         
-    def create_db(self):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fio TEXT NOT NULL,
-            group_name TEXT NOT NULL,
-            sep_month TEXT DEFAULT '',
-            oct_month TEXT DEFAULT '',
-            nov_month TEXT DEFAULT '',
-            dec_month TEXT DEFAULT '',
-            jan_month TEXT DEFAULT '',
-            feb_month TEXT DEFAULT '',
-            mar_month TEXT DEFAULT '',
-            apr_month TEXT DEFAULT '',
-            may_month TEXT DEFAULT '',
-            jun_month TEXT NULL
-            );
-            ''')
-
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS disciplines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            group_name TEXT NOT NULL);
-            ''')
-
-    # Метод добавления пользователей
-    def add_user(self, data: tuple):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('''
-            INSERT INTO students (
-                fio, 
-                group_name,
-                sep_month,
-                oct_month,
-                nov_month,
-                dec_month,
-                jan_month,
-                feb_month,
-                mar_month,
-                apr_month,
-                may_month,
-                jun_month
-            ) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-            ''', data)
-
-    # Метод добавления дисциплины в БД
-    def add_discipline(self, data: tuple):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('''
-            INSERT INTO disciplines (name, group_name) VALUES (?, ?);
-            ''', data)
-
-    # Метод получения пользователей из БД
-    def get_all_users(self, group_name, month_translit):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
-                f'SELECT id, fio, {month_translit} '
-                f'FROM students '
-                f'WHERE group_name = ?',
-                (group_name[0],)
-            )
-
-        return cursor.fetchall()
-
-    # Получение всех групп из БД
-    def get_all_groups(self):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('''
-            SELECT DISTINCT group_name FROM students 
-            ''')
-
-        return cursor.fetchall()
-    
-    # Получение всех дисциплин из БД
-    def get_all_disciplines(self):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('''
-            SELECT group_name, name FROM disciplines 
-            ''')
-
-        return cursor.fetchall()
-
-    # Метод удаления пользователя
-    def delete_user(self, data):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('DELETE FROM students WHERE fio = ? AND group_name = ?', data)
-
-    # Метод удаления дисциплин
-    def delete_discipline(self, data):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute('DELETE FROM disciplines WHERE name = ? AND group_name = ?', data)
-
-    # Метод изменения ФИО в БД
-    def edit_fio(self, data: tuple):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE students
-                SET fio = ?
-                WHERE id = ?;
-            """, data)
-    
-    # Метод изменения названия дисциплины в БД
-    def edit_discipline(self, data: tuple):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                UPDATE disciplines
-                SET name = ?
-                WHERE name = ?;
-            """, data)
-
-    # Метод изменения оценки(ок) в БД
-    def update_mark(self, month_translit, data: tuple):
-        with sqlite3.connect(DBManager.PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(f'UPDATE students SET {month_translit} = ? WHERE id = ?;', data)
 
 # Главный класс
 class MainWindow(tk.Frame):
@@ -226,7 +80,8 @@ class MainWindow(tk.Frame):
         self.init_tree()
 
         self.binds()
-
+        self.update_widgets()
+        
     # Создание и работа с фильтрами над таблицей
     def init_filters(self):
         try:
@@ -292,9 +147,6 @@ class MainWindow(tk.Frame):
             self.update_widgets()
 
         ttk.Button(dialog, text='Сохранить', command=save).pack(side='bottom', pady=2)
-
-    def delete_discipline(self, event=None):
-        pass 
             
     # Метод удаления студента / студентов по выделению в таблице
     def delete_students(self, event=None):
@@ -316,7 +168,7 @@ class MainWindow(tk.Frame):
         self.cmb_month.bind('<<ComboboxSelected>>', self.get_month)
 
         self.cmb_discipline.bind('<<ComboboxSelected>>', self.get_discipline)
-        self.cmb_discipline.bind('<Enter>', self.delete_discipline)
+        # self.cmb_discipline.bind('<Enter>', self.delete_discipline)
 
         self.cmb_group.bind('<<ComboboxSelected>>', self.get_group)
 
@@ -344,7 +196,6 @@ class MainWindow(tk.Frame):
         self.month_selected = self.month_var.get()
         self.discipline_selected = self.discipline_var.get()
         self.group_selected = self.group_var.get()
-        # print('self.group_selected: ', self.group_selected)
         # self.cmb_group.set(self.group[0])
 
         self.month_translit_selected = self.month_translit.get(self.month_selected, '')
@@ -352,7 +203,7 @@ class MainWindow(tk.Frame):
 
         self.disciplines: list = [] 
         for key in self.pairs_disciplines.keys():
-            if list(self.group_selected) in list(key):  
+            if self.group_selected in list(key):  
                 self.disciplines.extend(self.pairs_disciplines.get(key, ''))
 
         self.disciplines.append('Добавить дисциплину...')
@@ -507,6 +358,7 @@ class MainWindow(tk.Frame):
                     DBManager().add_discipline(data=(new, group))
                     self.disciplines.insert(0, new)
                     # self.cmb_discipline.set(self.disciplines[0])
+                    entry_add_discipline.delete(0, tk.END)
                     self.update_widgets()
                     return
                 else:
@@ -524,7 +376,7 @@ class MainWindow(tk.Frame):
     # Получение группы из combobox'а
     def get_group(self, event):
         self.group_selected = self.cmb_group.get().strip()
-        print("get_group_selected: ", self.group_selected)
+        # print("get_group_selected: ", self.group_selected)
 
         if self.group_selected == 'Добавить группу...':
             dialog = tk.Toplevel(self.root)
@@ -545,7 +397,7 @@ class MainWindow(tk.Frame):
 
             def save_group(event=None):
                 new = entry_add_group.get().strip()
-                print('new: ', new)
+                # print('new: ', new)
                 if new not in self.group:
                     self.group.insert(0, new)
                     self.cmb_group.set(self.group[0])
@@ -601,6 +453,7 @@ class MainWindow(tk.Frame):
             self.tree2.heading(var, text=heading)
             self.tree2.column(var, stretch=True, width=1000)
 
+
         # Treeview - 1 ()
         self.columns: list = ['', self.month_selected, '']
         self.tree1 = ttk.Treeview(self.root, columns=self.columns, show='headings', height=0)
@@ -613,7 +466,7 @@ class MainWindow(tk.Frame):
         # Treeview - 3 ()
         date = [str(_) for _ in range(1, 32)]
         self.date: list = ['№'] + ['Обучающиеся'] + date + ['Ср. балл'] + ['Процент успеваемости']
-        self.headings: list = ['num', 'students', 'discipline', 'avgmarker', 'percentdo']
+        get_count_students_group = DBManager().get_count_students_group(data=self.group_selected)
 
         self.tree3 = ttk.Treeview(self.root, columns=self.date, show='headings')
         self.tree3.pack(fill='both')
@@ -626,26 +479,44 @@ class MainWindow(tk.Frame):
             self.tree3.column(heading, stretch=False, width=932)
 
         self.tree3.column('№', width=25)
-        self.tree3.column('Обучающиеся', width=220)
+        self.tree3.column('Обучающиеся', width=210)
 
         for date in date:
-            self.tree3.column(date, width=32)
+            self.tree3.column(date, width=48)
 
-        self.tree3.column('Ср. балл', width=99)
-        self.tree3.column('Процент успеваемости', width=214)
+        self.tree3.column('Ср. балл', width=70)
+        self.tree3.column('Процент успеваемости', width=150)
 
-        data_format: list = [
+        def parse_int(s: str):
+            try:
+                return int(s)
+            except ValueError:
+                return None
+
+        def avg_mark(i: int = 0):
+            leng = len(mark_list[i])
+            try:
+                sums = sum(list(float(s) for inner_list in mark_list[i] for s in inner_list if parse_int(s)))
+                return round(sums / leng, 2)
+            except ZeroDivisionError:
+                return 0
+
+        mark_list = [[item for item in self.data[i][2].split(',') if item.isdigit()] for i in range(len(self.data))]
+
+        self.data_format: list = [
             (
-                self.data[i][0], 
-                self.data[i][1], 
+                i+1,
+                self.data[i][1],
                 *self.data[i][2].split(','),
-                round(sum(float(x) for x in self.data[i][2].split(',') if x.isdigit()) / len(self.data[i][2].split(',')), 2),
+                avg_mark(i),
                 '0%'
             )
             for i in range(len(self.data))
         ]
 
-        for data in data_format:
+        print('data_format: ', self.data_format)
+
+        for data in self.data_format:
             self.tree3.insert('', tk.END, values=data)
 
     # Метод изменения значения в поле таблице
@@ -680,7 +551,8 @@ class MainWindow(tk.Frame):
         # Метод сохранения значения в поле таблицы
         def save_value(event=None):
             values[col_indx] = cmb_value.get().strip()
-            if cmb_value.get().strip() == '' or cmb_value.get().strip() == ' ':
+
+            if col_name == 'Обучающиеся' and cmb_value.get().strip() == '' or cmb_value.get().strip() == ' ':
                 msg = messagebox.askyesno('Предупреждение', 'Вы стёрли информацию о студенте, вы хотите удалить этого студента из таблицы?')
                 if msg:
                     iid = self.tree3.selection()
@@ -698,18 +570,27 @@ class MainWindow(tk.Frame):
             if col_name not in non_editable_cols:
                 self.tree3.item(item, values=values)
                 iid = self.tree3.selection()
-                id_iid = self.tree3.set(iid, '№')
+
+                fio = self.tree3.set(iid, 'Обучающиеся')
+                print('fio: ', fio)
+
+                get_id_by_user = DBManager().get_id_by_users(data=(self.group_selected, fio))[0][0]
+                # print('get_id_by_user: ', get_id_by_user[0][0])
+
+                # id_iid = self.data_format[iid][0]
+                # print('id_iid: ', id_iid)
 
                 if col_name == 'Обучающиеся':
-                    DBManager().edit_fio(data=(cmb_value.get(),  id_iid))
+                    DBManager().edit_fio(data=(cmb_value.get(),  get_id_by_user))
                 else:
                     marks_by_days: list = [self.tree3.set(iid, day) for day in range(1, 32)]
                     format_marks = ','.join(marks_by_days)
-                    data = (format_marks, id_iid)
+                    data = (format_marks, get_id_by_user)
 
                     month_translit_selected = self.month_translit.get(self.month_selected, '')
                     DBManager().update_mark(month_translit=month_translit_selected, data=data)
-
+                    
+            self.update_widgets()
             cmb_value.destroy()
         
         # Горячие клавиши при различных действиях в режиме изменения значения в поле таблицы
@@ -717,7 +598,7 @@ class MainWindow(tk.Frame):
         cmb_value.bind('<FocusOut>', lambda e: cmb_value.destroy())
         cmb_value.bind('<Escape>', lambda e: cmb_value.destroy())
 
-# Главная функция. Входная точка запуска всей программы.
+# Главная функция.
 def main():
     db = DBManager().create_db()
 
@@ -731,6 +612,6 @@ def main():
 
     root.mainloop()
 
-# Конструкция гарантирующая правильный запуск программы 
+# Конструкция гарантирующая правильный запуск программы. Входная точка запуска программы.
 if __name__ == '__main__':
     main()
