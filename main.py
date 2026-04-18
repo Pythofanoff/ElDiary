@@ -49,7 +49,7 @@ class MainWindow(tk.Frame):
         get_allGroups = DBManager().get_all_groups()
         # print('get_allGroups: ', get_allGroups)
 
-        self.group = [x for y in get_allGroups for x in y] + ['Добавить группу...'] # + [''.join(*DBManager().get_all_groups().strip())] 
+        self.group = [x for y in get_allGroups for x in y] + ['Добавить группу...']
         # self.group.extend(['Добавить группу...'])
         # print('init first self.group: ', self.group)
 
@@ -185,11 +185,12 @@ class MainWindow(tk.Frame):
         self.root.bind('<Control-d>', self.delete_students)
         self.root.bind('<Delete>', self.delete_students)
 
-    # Вспомогательная метод для правильного закрытия окна
+    # Вспомогательный метод для правильного закрытия окна
     def dismiss(self, window):
         window.grab_release() 
         window.destroy()
 
+    # Метод обновления виджетов и данных 
     def update_widgets(self, event=None):
         # self.group_var.set(self.group[0])
 
@@ -225,6 +226,7 @@ class MainWindow(tk.Frame):
     def get_discipline(self, event=None):
         self.group_selected = self.cmb_discipline.get().strip()
 
+        # Если пользователь выбрал удаление дисциплины
         if self.group_selected == 'Удалить дисциплину...':
             dialog = tk.Toplevel(self.root)
             dialog.iconbitmap('icon.ico')
@@ -250,6 +252,7 @@ class MainWindow(tk.Frame):
             entry_group = ttk.Entry(frame2, width=25)
             entry_group.pack(padx=(0,5), pady=(3,4), side='right')
 
+            # Удаление дисциплины
             def delete_discipline(event=None):  
                 delete_name = entry_discipline.get().strip()
                 group = entry_group.get().strip()
@@ -273,6 +276,7 @@ class MainWindow(tk.Frame):
             entry_group.bind('<Return>', delete_discipline)
             ttk.Button(dialog, text='Удалить', command=delete_discipline).pack(side='bottom', pady=(0,2))
 
+        # Если пользователь выбрал изменение дисциплины
         elif self.group_selected == 'Изменить дисциплину...':
             dialog = tk.Toplevel(self.root)
             dialog.iconbitmap('icon.ico')
@@ -320,6 +324,7 @@ class MainWindow(tk.Frame):
             entry_new_name.bind('<Return>', edit_discipline)
             ttk.Button(dialog, text='Изменить', command=edit_discipline).pack(side='bottom', pady=(0,2))
 
+        # Если пользователь выбрал добавление дисциплины
         elif self.group_selected == 'Добавить дисциплину...':
             dialog = tk.Toplevel(self.root)
             dialog.iconbitmap('icon.ico')
@@ -376,7 +381,6 @@ class MainWindow(tk.Frame):
     # Получение группы из combobox'а
     def get_group(self, event):
         self.group_selected = self.cmb_group.get().strip()
-        # print("get_group_selected: ", self.group_selected)
 
         if self.group_selected == 'Добавить группу...':
             dialog = tk.Toplevel(self.root)
@@ -397,15 +401,13 @@ class MainWindow(tk.Frame):
 
             def save_group(event=None):
                 new = entry_add_group.get().strip()
-                # print('new: ', new)
+
                 if new not in self.group:
                     self.group.insert(0, new)
                     self.cmb_group.set(self.group[0])
                     self.group_selected = self.cmb_group.get()
                     self.group_var.set(self.group[0])
-                    
                     self.update_widgets()
-
                     return
                 else:
                     messagebox.showerror('Ошибка', 'Такая группа уже существует', parent=dialog)
@@ -419,8 +421,9 @@ class MainWindow(tk.Frame):
         else:
             self.update_widgets()
 
-    # Инитиализация скроллбаров
+    # Инициализация скроллбаров
     def init_scrollbar(self):
+        # Безопасное удаление полос прокрутки если они существуют (для удаления повторных полос прокрутки)
         try:
             self.scrl_bar.destroy()
             self.scrl_bar_horizont.destroy()
@@ -435,10 +438,11 @@ class MainWindow(tk.Frame):
 
     # Инитиализация таблица (Дерева TreeView)
     def init_tree(self):
+        # Безопасное удаление таблиц если они существуют (для обновления таблиц)
         try:
             self.tree1.destroy()
-            self.tree3.destroy()
             self.tree2.destroy()
+            self.tree3.destroy()
         except AttributeError:
             pass 
 
@@ -487,12 +491,14 @@ class MainWindow(tk.Frame):
         self.tree3.column('Ср. балл', width=70)
         self.tree3.column('Процент успеваемости', width=150)
 
+        # Функция получения чисел из строки
         def parse_int(s: str):
             try:
                 return int(s)
             except ValueError:
                 return None
 
+        # Функция расчёта сред. балла
         def avg_mark(i: int = 0):
             leng = len(mark_list[i])
             try:
@@ -501,8 +507,10 @@ class MainWindow(tk.Frame):
             except ZeroDivisionError:
                 return 0
 
+        # Лист оценок
         mark_list = [[item for item in self.data[i][2].split(',') if item.isdigit()] for i in range(len(self.data))]
 
+        # Лист с данными о пользователях
         self.data_format: list = [
             (
                 i+1,
@@ -516,11 +524,13 @@ class MainWindow(tk.Frame):
 
         print('data_format: ', self.data_format)
 
+        # Вставка данных о пользователе
         for data in self.data_format:
             self.tree3.insert('', tk.END, values=data)
 
     # Метод изменения значения в поле таблице
     def edit_value(self, event):
+        # Список неизменяемых колонок
         non_editable_cols: list = ['№', 'Ср. балл', 'Процент успеваемости']
 
         item = self.tree3.identify_row(event.y)
@@ -538,11 +548,13 @@ class MainWindow(tk.Frame):
 
         values = list(self.tree3.item(item, 'values'))
         
+        # Если не колонка Обучающиеся ttk.Combobox
         if col_name != 'Обучающиеся':
             cmb_value = ttk.Combobox(textvariable=self.mark_var, values=self.mark)
             cmb_value.place(x=x, y=y, width=width+1, height=height, in_=self.tree3)
             cmb_value.focus()
         else:
+            # Если колонка Обучающиеся разместить ttk.Entry
             cmb_value = ttk.Entry()
             cmb_value.place(x=x, y=y, width=width, height=height, in_=self.tree3)
             cmb_value.focus()
@@ -552,6 +564,7 @@ class MainWindow(tk.Frame):
         def save_value(event=None):
             values[col_indx] = cmb_value.get().strip()
 
+            # Если ФИО пользователя было стёрто полностью
             if col_name == 'Обучающиеся' and cmb_value.get().strip() == '' or cmb_value.get().strip() == ' ':
                 msg = messagebox.askyesno('Предупреждение', 'Вы стёрли информацию о студенте, вы хотите удалить этого студента из таблицы?')
                 if msg:
@@ -567,6 +580,7 @@ class MainWindow(tk.Frame):
                 else:
                     return 
 
+            # Изменить данные о пользователе если значение в этой ячейки можно поменять 
             if col_name not in non_editable_cols:
                 self.tree3.item(item, values=values)
                 iid = self.tree3.selection()
@@ -580,9 +594,11 @@ class MainWindow(tk.Frame):
                 # id_iid = self.data_format[iid][0]
                 # print('id_iid: ', id_iid)
 
+                # Если изменения произошли в колонке ФИО 
                 if col_name == 'Обучающиеся':
                     DBManager().edit_fio(data=(cmb_value.get(),  get_id_by_user))
                 else:
+                    # Если изменения произошли в колонках оценок 
                     marks_by_days: list = [self.tree3.set(iid, day) for day in range(1, 32)]
                     format_marks = ','.join(marks_by_days)
                     data = (format_marks, get_id_by_user)
@@ -598,7 +614,7 @@ class MainWindow(tk.Frame):
         cmb_value.bind('<FocusOut>', lambda e: cmb_value.destroy())
         cmb_value.bind('<Escape>', lambda e: cmb_value.destroy())
 
-# Главная функция.
+# Главная функция
 def main():
     db = DBManager().create_db()
 
