@@ -1,3 +1,4 @@
+# Задействие дисциплин в оценках
 # Добавить подсчёт процента успеваемости студента
 # Баг: у дисциплины перестало срабатывать проверку на уникальность (связано с перезаписью self.discipline в update_widgets())
 # Добавить возможность описания и сводки всех данных о студенте (подробно), добавить эту фичу вниз таблицы
@@ -20,6 +21,19 @@ from dbmanager import DBManager
 
 # Главный класс
 class MainWindow(tk.Frame):
+    month_translit: dict = {
+        'Сентябрь': 'sep_month',
+        'Октябрь': 'oct_month',
+        'Ноябрь': 'nov_month',
+        'Декабрь': 'dec_month',
+        'Январь': 'jan_month',
+        'Февраль': 'feb_month',
+        'Март': 'mar_month',
+        'Апрель': 'apr_month',
+        'Май': 'may_month',
+        'Июнь': 'jun_month'
+    }
+
     # Инициализация важных компонентов 
     def __init__(self, root): 
         self.root = root 
@@ -56,20 +70,8 @@ class MainWindow(tk.Frame):
         self.group_var = tk.StringVar(value=self.group[0])
         self.group_selected = self.group[0]
 
-        self.month_translit: dict = {
-            'Сентябрь': 'sep_month',
-            'Октябрь': 'oct_month',
-            'Ноябрь': 'nov_month',
-            'Декабрь': 'dec_month',
-            'Январь': 'jan_month',
-            'Февраль': 'feb_month',
-            'Март': 'mar_month',
-            'Апрель': 'apr_month',
-            'Май': 'may_month',
-            'Июнь': 'jun_month'
-        }
 
-        self.month_translit_selected = self.month_translit.get(self.month_selected, '')
+        self.month_translit_selected = MainWindow.month_translit.get(self.month_selected, '')
 
         self.data = DBManager().get_all_users(group_name=self.group_selected, month_translit=self.month_translit_selected)
 
@@ -113,19 +115,14 @@ class MainWindow(tk.Frame):
 
     # Метод добавления нового пользователя в таблицу
     def add_students(self, event=None):
-        dialog = tk.Toplevel(self.root)
-        dialog.iconbitmap('icon.ico')
-        dialog.title('Добавление нового студента...')
-        dialog.geometry('320x100')
-        dialog.resizable(False, False)
-        dialog.grab_set()
+        dialog, frame = self.create_dialog(title='Добавление нового студента...')
 
-        frame1 = tk.Frame(dialog)
-        frame1.pack(padx=4, fill='x')
+        # frame1 = tk.Frame(dialog)
+        # frame1.pack(padx=4, fill='x')
 
-        tk.Label(frame1, text='Введите нового студента: ').pack(side='left', padx=4)
+        tk.Label(frame, text='Введите нового студента: ').pack(side='left', padx=4)
 
-        entry_add_user = ttk.Entry(frame1, width=25)
+        entry_add_user = ttk.Entry(frame, width=25)
         entry_add_user.pack(padx=(3,0), pady=(5,5), side='left', anchor='e')
         entry_add_user.focus()
 
@@ -199,7 +196,7 @@ class MainWindow(tk.Frame):
         self.group_selected = self.group_var.get()
         # self.cmb_group.set(self.group[0])
 
-        self.month_translit_selected = self.month_translit.get(self.month_selected, '')
+        self.month_translit_selected = MainWindow.month_translit.get(self.month_selected, '')
         self.data = DBManager().get_all_users(group_name=(self.cmb_group.get().strip(),), month_translit=self.month_translit_selected)
 
         self.disciplines: list = [] 
@@ -217,6 +214,20 @@ class MainWindow(tk.Frame):
 
         self.binds()
 
+    # Метод Диалогового окна (универсальное под разные задачи) 
+    def create_dialog(self, title: str):
+        dialog = tk.Toplevel(self.root)
+        dialog.iconbitmap('icon.ico')
+        dialog.title(title)
+        dialog.geometry('300x120')
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        frame = tk.Frame(dialog)
+        frame.pack(side='bottom')
+
+        return dialog, frame
+
     # Получение месяца из combobox'а
     def get_month(self, event=None):
         self.month_selected = self.cmb_month.get().strip()
@@ -228,15 +239,7 @@ class MainWindow(tk.Frame):
 
         # Если пользователь выбрал удаление дисциплины
         if self.group_selected == 'Удалить дисциплину...':
-            dialog = tk.Toplevel(self.root)
-            dialog.iconbitmap('icon.ico')
-            dialog.title('Удаление дисциплины...')
-            dialog.geometry('330x120')
-            dialog.resizable(False, False)
-            dialog.grab_set()
-
-            frame = tk.Frame(dialog)
-            frame.pack(fill='x')
+            dialog, frame = self.create_dialog(title='Удаление дисциплины...')
 
             frame2 = tk.Frame(dialog)
             frame2.pack(fill='x')
@@ -278,15 +281,7 @@ class MainWindow(tk.Frame):
 
         # Если пользователь выбрал изменение дисциплины
         elif self.group_selected == 'Изменить дисциплину...':
-            dialog = tk.Toplevel(self.root)
-            dialog.iconbitmap('icon.ico')
-            dialog.title('Изменение дисциплины...')
-            dialog.geometry('330x120')
-            dialog.resizable(False, False)
-            dialog.grab_set()
-
-            frame = tk.Frame(dialog)
-            frame.pack(fill='x')
+            dialog, frame = self.create_dialog(title='Изменение дисциплины...')
 
             frame2 = tk.Frame(dialog)
             frame2.pack(fill='x')
@@ -326,15 +321,7 @@ class MainWindow(tk.Frame):
 
         # Если пользователь выбрал добавление дисциплины
         elif self.group_selected == 'Добавить дисциплину...':
-            dialog = tk.Toplevel(self.root)
-            dialog.iconbitmap('icon.ico')
-            dialog.title('Добавление новой дисциплины...')
-            dialog.geometry('330x120')
-            dialog.resizable(False, False)
-            dialog.grab_set()
-
-            frame = tk.Frame(dialog)
-            frame.pack(fill='x')
+            dialog, frame = self.create_dialog(title='Добавление новой дисциплины...')
 
             frame2 = tk.Frame(dialog)
             frame2.pack(fill='x')
@@ -377,21 +364,13 @@ class MainWindow(tk.Frame):
             self.root.wait_window(dialog)
         else:
             self.update_widgets()
-    
+
     # Получение группы из combobox'а
     def get_group(self, event):
         self.group_selected = self.cmb_group.get().strip()
 
         if self.group_selected == 'Добавить группу...':
-            dialog = tk.Toplevel(self.root)
-            dialog.iconbitmap('icon.ico')
-            dialog.title('Добавление новой группы...')
-            dialog.geometry('300x120')
-            dialog.resizable(False, False)
-            dialog.grab_set()
-
-            frame = tk.Frame(dialog)
-            frame.pack(side='bottom')
+            dialog, frame = self.create_dialog(title='Добавление новой группы...')
 
             tk.Label(dialog, text='Введите новую группу: ').pack(side='left')
 
@@ -421,7 +400,7 @@ class MainWindow(tk.Frame):
         else:
             self.update_widgets()
 
-    # Инициализация скроллбаров
+    # Инициализация полос прокрутки
     def init_scrollbar(self):
         # Безопасное удаление полос прокрутки если они существуют (для удаления повторных полос прокрутки)
         try:
@@ -436,7 +415,7 @@ class MainWindow(tk.Frame):
         self.scrl_bar_horizont = tk.Scrollbar(self.root, orient='horizontal')
         self.scrl_bar_horizont.pack(side='bottom', fill='x')
 
-    # Инитиализация таблица (Дерева TreeView)
+    # Инициализация таблиц (Дерево TreeView)
     def init_tree(self):
         # Безопасное удаление таблиц если они существуют (для обновления таблиц)
         try:
@@ -446,26 +425,24 @@ class MainWindow(tk.Frame):
         except AttributeError:
             pass 
 
-        # Treeview - 2 ()
+        # Treeview - 1 ()
         self.discipline: list = [self.discipline_selected]
         self.headings = ['discipline']
 
-        self.tree2 = ttk.Treeview(self.root, columns=self.headings, show='headings', height=0)
-        self.tree2.pack()
+        self.tree1 = ttk.Treeview(self.root, columns=self.headings, show='headings', height=0)
+        self.tree1.pack()
 
         for var, heading in zip(self.headings, self.discipline):
-            self.tree2.heading(var, text=heading)
-            self.tree2.column(var, stretch=True, width=1000)
+            self.tree1.heading(var, text=heading)
+            self.tree1.column(var, stretch=True, width=1000)
 
-
-        # Treeview - 1 ()
+        # Treeview - 2 ()
         self.columns: list = ['', self.month_selected, '']
-        self.tree1 = ttk.Treeview(self.root, columns=self.columns, show='headings', height=0)
-        self.tree1.pack(pady=(1,0), fill='both')
+        self.tree2 = ttk.Treeview(self.root, columns=self.columns, show='headings', height=0)
+        self.tree2.pack(pady=(1,0), fill='both')
 
         for heading, column in zip(self.columns, self.columns):
-            self.tree1.heading(heading, text=heading)
-
+            self.tree2.heading(heading, text=heading)
 
         # Treeview - 3 ()
         date = [str(_) for _ in range(1, 32)]
@@ -507,10 +484,10 @@ class MainWindow(tk.Frame):
             except ZeroDivisionError:
                 return 0
 
-        # Лист оценок
+        # Список оценок
         mark_list = [[item for item in self.data[i][2].split(',') if item.isdigit()] for i in range(len(self.data))]
 
-        # Лист с данными о пользователях
+        # Список с данными о пользователях
         self.data_format: list = [
             (
                 i+1,
@@ -589,10 +566,6 @@ class MainWindow(tk.Frame):
                 print('fio: ', fio)
 
                 get_id_by_user = DBManager().get_id_by_users(data=(self.group_selected, fio))[0][0]
-                # print('get_id_by_user: ', get_id_by_user[0][0])
-
-                # id_iid = self.data_format[iid][0]
-                # print('id_iid: ', id_iid)
 
                 # Если изменения произошли в колонке ФИО 
                 if col_name == 'Обучающиеся':
@@ -603,7 +576,7 @@ class MainWindow(tk.Frame):
                     format_marks = ','.join(marks_by_days)
                     data = (format_marks, get_id_by_user)
 
-                    month_translit_selected = self.month_translit.get(self.month_selected, '')
+                    month_translit_selected = MainWindow.get(self.month_selected, '')
                     DBManager().update_mark(month_translit=month_translit_selected, data=data)
                     
             self.update_widgets()
