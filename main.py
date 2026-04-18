@@ -113,21 +113,35 @@ class MainWindow(tk.Frame):
         ttk.Button(self.filter_frame, text='Удалить студента(ов)', command=self.delete_students).pack(padx=(3,2), anchor='e', side='left')
         ttk.Button(self.filter_frame, text='Обновить', command=self.update_widgets).pack(padx=(3,2), anchor='e', side='left')
 
+    # Метод диалогового окна (универсальное под разные задачи) 
+    def create_dialog(self, title: str):
+        dialog = tk.Toplevel(self.root)
+        dialog.iconbitmap('icon.ico')
+        dialog.title(title)
+        dialog.geometry('300x120')
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        frame = tk.Frame(dialog)
+        frame.pack(side='top')
+
+        frame2 = tk.Frame(dialog)
+        frame2.pack(fill='x')
+
+        frame3 = tk.Frame(dialog)
+        frame3.pack(side='bottom')
+
+        return dialog, frame, frame2, frame3
+
     # Метод добавления нового пользователя в таблицу
     def add_students(self, event=None):
-        dialog, frame = self.create_dialog(title='Добавление нового студента...')
-
-        # frame1 = tk.Frame(dialog)
-        # frame1.pack(padx=4, fill='x')
+        dialog, frame, frame2, frame3 = self.create_dialog(title='Добавление нового студента...')
 
         tk.Label(frame, text='Введите нового студента: ').pack(side='left', padx=4)
 
         entry_add_user = ttk.Entry(frame, width=25)
         entry_add_user.pack(padx=(3,0), pady=(5,5), side='left', anchor='e')
         entry_add_user.focus()
-
-        frame2 = tk.Frame(dialog)
-        frame2.pack(padx=4, fill='x')
 
         lbl = tk.Label(frame2, text='Введите группу: ')
         lbl.pack(side='left', padx=4)
@@ -137,15 +151,15 @@ class MainWindow(tk.Frame):
 
         def save(): 
             data = (entry_add_user.get().strip(), entry_add_group.get().strip()) + (','*30,)*10
-            print('save_data_user: ', data)
+            # print('save_data_user: ', data)
 
             DBManager().add_user(data)
 
             self.update_widgets()
 
-        ttk.Button(dialog, text='Сохранить', command=save).pack(side='bottom', pady=2)
+        ttk.Button(frame3, text='Сохранить', command=save).pack(side='bottom')
             
-    # Метод удаления студента / студентов по выделению в таблице
+    # Метод удаления студента(ов) по выделению в таблице
     def delete_students(self, event=None):
         iid = self.tree3.selection()
         msg = messagebox.askyesno('Предупреждение', 'Вы хотите удалить студента(ов) из таблицы безвозвратно?')
@@ -162,15 +176,6 @@ class MainWindow(tk.Frame):
 
     # Инициализация горячих клавиш
     def binds(self):
-        self.cmb_month.bind('<<ComboboxSelected>>', self.get_month)
-
-        self.cmb_discipline.bind('<<ComboboxSelected>>', self.get_discipline)
-        # self.cmb_discipline.bind('<Enter>', self.delete_discipline)
-
-        self.cmb_group.bind('<<ComboboxSelected>>', self.get_group)
-
-        self.tree3.bind('<Button-1>', self.edit_value)
-
         self.root.bind('<Control-S>', self.update_widgets)
         self.root.bind('<Control-s>', self.update_widgets)
         self.root.bind('<Control-R>', self.update_widgets)
@@ -181,6 +186,12 @@ class MainWindow(tk.Frame):
         self.root.bind('<Control-D>', self.delete_students)
         self.root.bind('<Control-d>', self.delete_students)
         self.root.bind('<Delete>', self.delete_students)
+        
+        self.cmb_month.bind('<<ComboboxSelected>>', self.get_month)
+        self.cmb_discipline.bind('<<ComboboxSelected>>', self.get_discipline)
+        self.cmb_group.bind('<<ComboboxSelected>>', self.get_group)
+
+        self.tree3.bind('<Button-1>', self.edit_value)
 
     # Вспомогательный метод для правильного закрытия окна
     def dismiss(self, window):
@@ -214,20 +225,6 @@ class MainWindow(tk.Frame):
 
         self.binds()
 
-    # Метод Диалогового окна (универсальное под разные задачи) 
-    def create_dialog(self, title: str):
-        dialog = tk.Toplevel(self.root)
-        dialog.iconbitmap('icon.ico')
-        dialog.title(title)
-        dialog.geometry('300x120')
-        dialog.resizable(False, False)
-        dialog.grab_set()
-
-        frame = tk.Frame(dialog)
-        frame.pack(side='bottom')
-
-        return dialog, frame
-
     # Получение месяца из combobox'а
     def get_month(self, event=None):
         self.month_selected = self.cmb_month.get().strip()
@@ -239,10 +236,7 @@ class MainWindow(tk.Frame):
 
         # Если пользователь выбрал удаление дисциплины
         if self.group_selected == 'Удалить дисциплину...':
-            dialog, frame = self.create_dialog(title='Удаление дисциплины...')
-
-            frame2 = tk.Frame(dialog)
-            frame2.pack(fill='x')
+            dialog, frame, frame2, frame3 = self.create_dialog(title='Удаление дисциплины...')
 
             tk.Label(frame, text='Введите дисциплину для удаления: ').pack(side='left')
 
@@ -277,14 +271,11 @@ class MainWindow(tk.Frame):
 
             entry_discipline.bind('<Return>', delete_discipline)
             entry_group.bind('<Return>', delete_discipline)
-            ttk.Button(dialog, text='Удалить', command=delete_discipline).pack(side='bottom', pady=(0,2))
+            ttk.Button(frame3, text='Удалить', command=delete_discipline).pack(side='bottom', pady=(0,2))
 
         # Если пользователь выбрал изменение дисциплины
         elif self.group_selected == 'Изменить дисциплину...':
-            dialog, frame = self.create_dialog(title='Изменение дисциплины...')
-
-            frame2 = tk.Frame(dialog)
-            frame2.pack(fill='x')
+            dialog, frame, frame2, frame3 = self.create_dialog(title='Изменение дисциплины...')
 
             tk.Label(frame, text='Введите дисциплину для изменения названия: ').pack(side='left')
 
@@ -317,14 +308,11 @@ class MainWindow(tk.Frame):
 
             entry_discipline.bind('<Return>', edit_discipline)
             entry_new_name.bind('<Return>', edit_discipline)
-            ttk.Button(dialog, text='Изменить', command=edit_discipline).pack(side='bottom', pady=(0,2))
+            ttk.Button(frame3, text='Изменить', command=edit_discipline).pack(side='bottom', pady=(0,2))
 
         # Если пользователь выбрал добавление дисциплины
         elif self.group_selected == 'Добавить дисциплину...':
-            dialog, frame = self.create_dialog(title='Добавление новой дисциплины...')
-
-            frame2 = tk.Frame(dialog)
-            frame2.pack(fill='x')
+            dialog, frame, frame2, frame3 = self.create_dialog(title='Добавление новой дисциплины...')
 
             tk.Label(frame, text='Введите новую дисциплину: ').pack(side='left')
 
@@ -359,7 +347,7 @@ class MainWindow(tk.Frame):
 
             entry_add_discipline.bind('<Return>', save_disciplines)
             entry_group.bind('<<ComboboxSelected>>', save_disciplines)
-            ttk.Button(dialog, text='Добавить', command=save_disciplines).pack(side='bottom', pady=(0,2))
+            ttk.Button(frame3, text='Добавить', command=save_disciplines).pack(side='bottom', pady=(0,2))
 
             self.root.wait_window(dialog)
         else:
@@ -370,7 +358,7 @@ class MainWindow(tk.Frame):
         self.group_selected = self.cmb_group.get().strip()
 
         if self.group_selected == 'Добавить группу...':
-            dialog, frame = self.create_dialog(title='Добавление новой группы...')
+            dialog, frame, frame2, frame3 = self.create_dialog(title='Добавление новой группы...')
 
             tk.Label(dialog, text='Введите новую группу: ').pack(side='left')
 
@@ -393,7 +381,7 @@ class MainWindow(tk.Frame):
                     return
 
             entry_add_group.bind('<Return>', save_group)
-            ttk.Button(frame, text='Добавить', command=save_group).pack(side='bottom', pady=(0,2))
+            ttk.Button(frame3, text='Добавить', command=save_group).pack(side='bottom', pady=(0,2))
             self.update_widgets()
             
             self.root.wait_window(dialog)
@@ -525,13 +513,13 @@ class MainWindow(tk.Frame):
 
         values = list(self.tree3.item(item, 'values'))
         
-        # Если не колонка Обучающиеся ttk.Combobox
+        # Если колонка не "Обучающиеся" то использовать ttk.Combobox
         if col_name != 'Обучающиеся':
             cmb_value = ttk.Combobox(textvariable=self.mark_var, values=self.mark)
             cmb_value.place(x=x, y=y, width=width+1, height=height, in_=self.tree3)
             cmb_value.focus()
         else:
-            # Если колонка Обучающиеся разместить ttk.Entry
+            # Если колонка "Обучающиеся" то использовать ttk.Entry
             cmb_value = ttk.Entry()
             cmb_value.place(x=x, y=y, width=width, height=height, in_=self.tree3)
             cmb_value.focus()
