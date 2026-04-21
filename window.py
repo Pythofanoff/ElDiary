@@ -16,7 +16,7 @@ import tkinter as tk
 from functools import reduce
 from tkinter import messagebox, ttk
 
-# from dbmanager import DBManager
+from dbmanager import DBManager
 import sqlite3
 
 
@@ -74,7 +74,7 @@ class MainWindow(tk.Frame):
 
         self.month_translit_selected = MainWindow.month_translit.get(self.month_selected, '')
 
-        self.data = DBManager().get_all_users(group_name=self.group_selected, month_translit=self.month_translit_selected)
+        self.data = DBManager().get_all_users(group_name=self.group_selected)
 
         # Первоначальный запуск функций 
         self.init_filters()
@@ -151,7 +151,7 @@ class MainWindow(tk.Frame):
         entry_add_group.pack(padx=(5,0), pady=(5,5), side='right', anchor='e')
 
         def save(): 
-            data = (entry_add_user.get().strip(), entry_add_group.get().strip()) + (','*30,)*10
+            data = (entry_add_user.get().strip(), entry_add_group.get().strip()) # + (','*30,)*10 # TODO
             # print('save_data_user: ', data)
 
             DBManager().add_user(data)
@@ -209,7 +209,7 @@ class MainWindow(tk.Frame):
         # self.cmb_group.set(self.group[0])
 
         self.month_translit_selected = MainWindow.month_translit.get(self.month_selected, '')
-        self.data = DBManager().get_all_users(group_name=(self.cmb_group.get().strip(),), month_translit=self.month_translit_selected)
+        self.data = DBManager().get_all_users(group_name=(self.cmb_group.get().strip(),))
 
         self.init_filters()
         self.init_scrollbar()
@@ -476,6 +476,12 @@ class MainWindow(tk.Frame):
             except ZeroDivisionError:
                 return 0
 
+        print('self.data: ', self.data)
+
+        self.get_students_group = DBManager().get_id_by_users(data=self.group_selected)
+        for student in self.get_students_group:
+            marks_by_id = DBManager().get_marks_by_id(student_id=student, month_translit=self.month_selected)
+        
         # Список оценок
         mark_list = [[item for item in self.data[i][2].split(',') if item.isdigit()] for i in range(len(self.data))]
 
@@ -559,7 +565,12 @@ class MainWindow(tk.Frame):
                 print('fio: ', fio)
                 print('self.group_selected:', self.group_selected)
 
-                get_id_by_user = DBManager().get_id_by_users(data=(self.group_selected, fio))[0][0]
+                get_id_by_user = DBManager().get_id_by_users(data=(self.group_selected, fio))
+                if get_id_by_user:
+                    get_id_by_user[0][0]
+                else:
+                    pass
+
                 print(get_id_by_user)
 
                 # Если изменения произошли в колонке ФИО 
@@ -570,9 +581,9 @@ class MainWindow(tk.Frame):
                     marks_by_days: list = [self.tree3.set(iid, day) for day in range(1, 32)]
                     format_marks = ','.join(marks_by_days)
                     data = (format_marks, get_id_by_user)
-
+                    get_discipline_id = DBManager().get_discipline_id(discipline=self.discipline_selected, group=self.group_selected)
                     month_translit_selected = MainWindow.month_translit.get(self.month_selected, '')
-                    DBManager().update_mark(month_translit=month_translit_selected, data=data)
+                    DBManager().save_or_update_grade(student_id=get_id_by_user, discipline_id=get_discipline_id, grade=format_marks, month_translit=month_translit_selected)
                     
             self.update_widgets()
             cmb_value.destroy()

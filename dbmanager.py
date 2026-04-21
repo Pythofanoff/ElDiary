@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 
 # Класс для работы с БД
@@ -15,25 +16,35 @@ class DBManager:
             CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fio TEXT NOT NULL,
-            group_name TEXT NOT NULL,
-            sep_month TEXT DEFAULT '',
-            oct_month TEXT DEFAULT '',
-            nov_month TEXT DEFAULT '',
-            dec_month TEXT DEFAULT '',
-            jan_month TEXT DEFAULT '',
-            feb_month TEXT DEFAULT '',
-            mar_month TEXT DEFAULT '',
-            apr_month TEXT DEFAULT '',
-            may_month TEXT DEFAULT '',
-            jun_month TEXT NULL
+            group_name TEXT NOT NULL
             );
             ''')
 
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS disciplines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            group_name TEXT NOT NULL);
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                group_name TEXT NOT NULL);
+            ''')
+
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS grades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                discipline_id INTEGER NOT NULL,
+                sep_month TEXT DEFAULT '',
+                oct_month TEXT DEFAULT '',
+                nov_month TEXT DEFAULT '',
+                dec_month TEXT DEFAULT '',
+                jan_month TEXT DEFAULT '',
+                feb_month TEXT DEFAULT '',
+                mar_month TEXT DEFAULT '',
+                apr_month TEXT DEFAULT '',
+                may_month TEXT DEFAULT '',
+                jun_month TEXT NULL,
+                date TEXT,
+                FOREIGN KEY (student_id) REFERENCES students(id),
+                FOREIGN KEY (discipline_id) REFERENCES disciplines(id));
             ''')
 
     # Метод добавления пользователей
@@ -44,19 +55,9 @@ class DBManager:
             cursor.execute('''
             INSERT INTO students (
                 fio, 
-                group_name,
-                sep_month,
-                oct_month,
-                nov_month,
-                dec_month,
-                jan_month,
-                feb_month,
-                mar_month,
-                apr_month,
-                may_month,
-                jun_month
+                group_name
             ) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            VALUES (?, ?);
             ''', data)
 
     # Метод добавления дисциплины в БД
@@ -68,20 +69,70 @@ class DBManager:
             INSERT INTO disciplines (name, group_name) VALUES (?, ?);
             ''', data)
 
-    # Метод получения пользователей из БД
-    def get_all_users(self, group_name, month_translit):
+    def save_or_update_grade(self, student_id, discipline_id, grade, month_translit):
+        conn = sqlite3.connect(self.PATH)
+        cursor = conn.cursor()
+
+        # Проверяем, есть ли уже оценка для этого студента по данной дисциплине
+        cursor.execute('''
+            SELECT id FROM grades WHERE student_id=? AND discipline_id=?
+        ''', (student_id, discipline_id))
+        result = cursor.fetchone()
+
+        if result:
+            # Если есть — обновляем оценку
+            cursor.execute(f'''
+                UPDATE grades SET {month_translit}=?, date=? WHERE id=?
+            ''', (grade, datetime.now().strftime('%Y-%m-%d'), result[0]))
+        else:
+            # Если нет — вставляем новую
+            cursor.execute(f'''
+                INSERT INTO grades (student_id, discipline_id, {month_translit}, date)
+                VALUES (?, ?, ?, ?)
+            ''', (student_id, discipline_id, grade, datetime.now().strftime('%Y-%m-%d')))
+        
+        conn.commit()
+        conn.close()
+
+    def get_marks_by_id(self, student_id, month_translit):
         with sqlite3.connect(DBManager.PATH) as conn:
             cursor = conn.cursor()
 
             cursor.execute(
-                f'SELECT id, fio, {month_translit} '
+                f'SELECT {month_translit} '
+                f'FROM grades '
+                f'WHERE student_id = ?',
+                (student_id,)
+            )
+
+        return cursor.fetchall()
+
+    def get_discipline_id(self, discipline, group):
+        with sqlite3.connect(DBManager.PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                f'SELECT id '
+                f'FROM disciplines '
+                f'WHERE group_name = ? AND name = ?',
+                (group, discipline)
+            )
+
+        return cursor.fetchone()
+
+    # Метод получения пользователей из БД
+    def get_all_users(self, group_name):
+        with sqlite3.connect(DBManager.PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                f'SELECT id, fio '
                 f'FROM students '
                 f'WHERE group_name = ?',
                 (group_name[0],)
             )
 
         return cursor.fetchall()
-
 
     # Метод получения id пользователя по группе и фио
     def get_id_by_users(self, data):
@@ -91,8 +142,8 @@ class DBManager:
             cursor.execute(
                 f'SELECT id '
                 f'FROM students '
-                f'WHERE group_name = ? AND fio = ?',
-                data
+                f'WHERE group_name = ?',
+                (data,)
             )
 
         return cursor.fetchall()
